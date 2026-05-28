@@ -9,9 +9,8 @@ export default function App() {
   const [preview, setPreview] = useState(null)
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState('check') // 'check' or 'practice'
+  const [mode, setMode] = useState('check')
   const [parentEmail, setParentEmail] = useState('')
-  const [showPhotoChoice, setShowPhotoChoice] = useState(false)
   const cameraInputRef = useRef(null)
   const galleryInputRef = useRef(null)
 
@@ -22,18 +21,7 @@ export default function App() {
       const reader = new FileReader()
       reader.onload = (e) => setPreview(e.target.result)
       reader.readAsDataURL(file)
-      setShowPhotoChoice(false)
     }
-  }
-
-  const handleTakePhoto = () => {
-    setShowPhotoChoice(false)
-    cameraInputRef.current?.click()
-  }
-
-  const handleUploadPhoto = () => {
-    setShowPhotoChoice(false)
-    galleryInputRef.current?.click()
   }
 
   const handleVerify = async () => {
@@ -102,27 +90,24 @@ export default function App() {
 
             {!preview ? (
               <>
-                <div className="upload-area" onClick={() => setShowPhotoChoice(true)}>
+                <div className="upload-area">
                   <div className="upload-icon">📷</div>
-                  <p>Tap to take a photo or upload</p>
-                </div>
-
-                {showPhotoChoice && (
-                  <div className="modal-overlay" onClick={() => setShowPhotoChoice(false)}>
-                    <div className="choice-dialog" onClick={(e) => e.stopPropagation()}>
-                      <h2>Choose Photo Source</h2>
-                      <button className="choice-btn camera-btn" onClick={handleTakePhoto}>
-                        📷 Take a Photo
-                      </button>
-                      <button className="choice-btn gallery-btn" onClick={handleUploadPhoto}>
-                        🖼️ Upload from Library
-                      </button>
-                      <button className="choice-btn cancel-btn" onClick={() => setShowPhotoChoice(false)}>
-                        ✕ Cancel
-                      </button>
-                    </div>
+                  <p>Choose how to upload your homework</p>
+                  <div className="button-group">
+                    <button 
+                      className="upload-btn camera-btn"
+                      onClick={() => cameraInputRef.current?.click()}
+                    >
+                      📷 Take Photo
+                    </button>
+                    <button 
+                      className="upload-btn gallery-btn"
+                      onClick={() => galleryInputRef.current?.click()}
+                    >
+                      🖼️ Upload Photo
+                    </button>
                   </div>
-                )}
+                </div>
 
                 <input
                   ref={cameraInputRef}
@@ -177,6 +162,18 @@ export default function App() {
             </div>
 
             <div className="score">Score: {result.score}%</div>
+
+            {result.answers && result.answers.length > 0 && (
+              <div className="answers-check">
+                <h3>Answer Check:</h3>
+                {result.answers.map((answer, idx) => (
+                  <div key={idx} className={`answer-item ${answer.correct ? 'correct' : 'incorrect'}`}>
+                    <span className="check-mark">{answer.correct ? '✓' : '✗'}</span>
+                    <span className="answer-text">{answer.text}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="feedback">{result.feedback}</div>
 
