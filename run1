@@ -1,5 +1,1 @@
-git status
-git add src/App.jsx src/App.css
-git commit -m "feat: add photo source choice dialog (camera or gallery)"
-git push origin main
-
+npm install
