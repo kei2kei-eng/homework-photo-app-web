@@ -11,7 +11,9 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState('check') // 'check' or 'practice'
   const [parentEmail, setParentEmail] = useState('')
-  const fileInputRef = useRef(null)
+  const [showPhotoChoice, setShowPhotoChoice] = useState(false)
+  const cameraInputRef = useRef(null)
+  const galleryInputRef = useRef(null)
 
   const handlePhotoCapture = (e) => {
     const file = e.target.files[0]
@@ -20,7 +22,18 @@ export default function App() {
       const reader = new FileReader()
       reader.onload = (e) => setPreview(e.target.result)
       reader.readAsDataURL(file)
+      setShowPhotoChoice(false)
     }
+  }
+
+  const handleTakePhoto = () => {
+    setShowPhotoChoice(false)
+    cameraInputRef.current?.click()
+  }
+
+  const handleUploadPhoto = () => {
+    setShowPhotoChoice(false)
+    galleryInputRef.current?.click()
   }
 
   const handleVerify = async () => {
@@ -88,18 +101,45 @@ export default function App() {
             </div>
 
             {!preview ? (
-              <div className="upload-area" onClick={() => fileInputRef.current?.click()}>
-                <div className="upload-icon">📷</div>
-                <p>Tap to take a photo or upload</p>
+              <>
+                <div className="upload-area" onClick={() => setShowPhotoChoice(true)}>
+                  <div className="upload-icon">📷</div>
+                  <p>Tap to take a photo or upload</p>
+                </div>
+
+                {showPhotoChoice && (
+                  <div className="modal-overlay" onClick={() => setShowPhotoChoice(false)}>
+                    <div className="choice-dialog" onClick={(e) => e.stopPropagation()}>
+                      <h2>Choose Photo Source</h2>
+                      <button className="choice-btn camera-btn" onClick={handleTakePhoto}>
+                        📷 Take a Photo
+                      </button>
+                      <button className="choice-btn gallery-btn" onClick={handleUploadPhoto}>
+                        🖼️ Upload from Library
+                      </button>
+                      <button className="choice-btn cancel-btn" onClick={() => setShowPhotoChoice(false)}>
+                        ✕ Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <input
-                  ref={fileInputRef}
+                  ref={cameraInputRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
                   onChange={handlePhotoCapture}
                   style={{ display: 'none' }}
                 />
-              </div>
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoCapture}
+                  style={{ display: 'none' }}
+                />
+              </>
             ) : (
               <>
                 <div className="preview">
