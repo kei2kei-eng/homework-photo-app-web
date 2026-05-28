@@ -2,198 +2,270 @@ import { useState, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
 
 export default function App() {
-  const [photo, setPhoto] = useState(null)
+  const [activeTab, setActiveTab] = useState('check')
+  const [selectedFile, setSelectedFile] = useState(null)
   const [preview, setPreview] = useState(null)
-  const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState('check')
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
   const [parentEmail, setParentEmail] = useState('')
-  const cameraInputRef = useRef(null)
-  const galleryInputRef = useRef(null)
+  const [history, setHistory] = useState([])
+  const fileInputRef = useRef(null)
 
-  const handlePhotoCapture = (e) => {
-    const file = e.target.files[0]
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0]
     if (file) {
-      setPhoto(file)
+      setSelectedFile(file)
+      setError(null)
+      
       const reader = new FileReader()
-      reader.onload = (e) => setPreview(e.target.result)
+      reader.onload = (e) => {
+        setPreview(e.target.result)
+      }
       reader.readAsDataURL(file)
     }
   }
 
-  const handleVerify = async () => {
-    if (!photo) return
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleCheckHomework = async () => {
+    if (!selectedFile) {
+      setError('Please select a photo first')
+      return
+    }
 
     setLoading(true)
+    setError(null)
+
     try {
       const formData = new FormData()
-      formData.append('photo', photo)
-      formData.append('mode', mode)
+      formData.append('photo', selectedFile)
 
-      const response = await axios.post(`${API_URL}/api/verify`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await axios.post(`${API_BASE_URL}/api/verify`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
 
-      setResult(response.data)
-    } catch (error) {
-      setResult({ error: 'Failed to verify homework. Please try again.' })
+      const resultData = {
+        isCorrect: response.data.isCorrect,
+        feedback: response.data.feedback,
+        timestamp: new Date().toLocaleString(),
+      }
+
+      setResult(resultData)
+      setHistory([resultData, ...history])
+      setSelectedFile(null)
+      setPreview(null)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to verify homework. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSendToParent = async () => {
-    if (!parentEmail || !result) return
+  const handleSendEmail = async () => {
+    if (!parentEmail) {
+      setError('Please enter parent email address')
+      return
+    }
+
+    if (!result) {
+      setError('No result to send')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
 
     try {
-      await axios.post(`${API_URL}/api/send-email`, {
-        email: parentEmail,
-        result: result
+      await axios.post(`${API_BASE_URL}/api/send-email`, {
+        parentEmail,
+        result,
       })
-      alert('Email sent to parent!')
-    } catch (error) {
-      alert('Failed to send email')
+
+      setError(null)
+      alert('Email sent to parent successfully!')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to send email')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleReset = () => {
-    setPhoto(null)
-    setPreview(null)
-    setResult(null)
-    setParentEmail('')
+  const handlePracticeMode = async () => {
+    if (!selectedFile) {
+      setError('Please select a photo first')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('photo', selectedFile)
+
+      const response = await axios.post(`${API_BASE_URL}/api/remove-answers`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      // Download the processed image
+      const link = document.createElement('a')
+      link.href = response.data.imageUrl
+      link.download = 'homework-practice.jpg'
+      link.click()
+
+      setSelectedFile(null)
+      setPreview(null)
+      alert('Practice mode image downloaded!')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to process image')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="app">
-      <div className="container">
+    <div className="container">
+      <div className="header">
         <h1>📚 Homework Checker</h1>
+        <p>Take a photo and let AI verify your homework!</p>
+      </div>
 
+      <div className="tabs">
+        <button
+          className={`tab-button ${activeTab === 'check' ? 'active' : ''}`}
+          onClick={() => setActiveTab('check')}
+        >
+          ✓ Check
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          📋 History
+        </button>
+      </div>
+
+      <div className={`tab-content ${activeTab === 'check' ? 'active' : ''}`}>
         {!result ? (
           <>
-            <div className="mode-selector">
-              <button
-                className={`mode-btn ${mode === 'check' ? 'active' : ''}`}
-                onClick={() => setMode('check')}
-              >
-                ✓ Check Homework
-              </button>
-              <button
-                className={`mode-btn ${mode === 'practice' ? 'active' : ''}`}
-                onClick={() => setMode('practice')}
-              >
-                🎯 Practice Mode
-              </button>
+            <div className="upload-area" onClick={handleUploadClick}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+              />
+              <div className="upload-icon">📷</div>
+              <div className="upload-text">Tap to take or upload photo</div>
+              <div className="upload-hint">JPG, PNG up to 10MB</div>
             </div>
 
-            {!preview ? (
+            {preview && (
               <>
-                <div className="upload-area">
-                  <div className="upload-icon">📷</div>
-                  <p>Choose how to upload your homework</p>
-                  <div className="button-group">
-                    <button 
-                      className="upload-btn camera-btn"
-                      onClick={() => cameraInputRef.current?.click()}
-                    >
-                      📷 Take Photo
-                    </button>
-                    <button 
-                      className="upload-btn gallery-btn"
-                      onClick={() => galleryInputRef.current?.click()}
-                    >
-                      🖼️ Upload Photo
-                    </button>
-                  </div>
-                </div>
-
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoCapture}
-                  style={{ display: 'none' }}
-                />
-                <input
-                  ref={galleryInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoCapture}
-                  style={{ display: 'none' }}
-                />
-              </>
-            ) : (
-              <>
-                <div className="preview">
-                  <img src={preview} alt="homework" />
-                </div>
-
-                {mode === 'check' && (
-                  <input
-                    type="email"
-                    placeholder="Parent email (optional)"
-                    value={parentEmail}
-                    onChange={(e) => setParentEmail(e.target.value)}
-                    className="email-input"
-                  />
-                )}
-
+                <img src={preview} alt="Preview" className="preview-image" />
                 <button
-                  onClick={handleVerify}
+                  className="button button-primary"
+                  onClick={handleCheckHomework}
                   disabled={loading}
-                  className="verify-btn"
                 >
-                  {loading ? '⏳ Checking...' : '✓ Verify'}
+                  {loading ? 'Checking...' : '✓ Check Homework'}
                 </button>
-
-                <button onClick={handleReset} className="reset-btn">
-                  ↻ Change Photo
+                <button
+                  className="button button-secondary"
+                  onClick={handlePracticeMode}
+                  disabled={loading}
+                >
+                  {loading ? 'Processing...' : '✏️ Practice Mode'}
                 </button>
               </>
             )}
+
+            {error && <div className="error-message">{error}</div>}
           </>
         ) : (
-          <div className="result">
-            <div className={`result-badge ${result.correct ? 'correct' : 'incorrect'}`}>
-              {result.correct ? '✓ CORRECT!' : '✗ NEEDS WORK'}
+          <div className="result-card">
+            <div className="result-status">
+              <div className={`status-icon ${result.isCorrect ? 'correct' : 'incorrect'}`}>
+                {result.isCorrect ? '✓' : '✗'}
+              </div>
+              <div className="status-text">
+                {result.isCorrect ? 'Correct!' : 'Needs Review'}
+              </div>
             </div>
 
-            <div className="score">Score: {result.score}%</div>
+            <div className="result-details">
+              {result.feedback}
+            </div>
 
-            {result.answers && result.answers.length > 0 && (
-              <div className="answers-check">
-                <h3>Answer Check:</h3>
-                {result.answers.map((answer, idx) => (
-                  <div key={idx} className={`answer-item ${answer.correct ? 'correct' : 'incorrect'}`}>
-                    <span className="check-mark">{answer.correct ? '✓' : '✗'}</span>
-                    <span className="answer-text">{answer.text}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="feedback">{result.feedback}</div>
-
-            {mode === 'practice' && result.cleaned_image && (
-              <div className="practice-image">
-                <p>Practice without answers:</p>
-                <img src={result.cleaned_image} alt="practice" />
-              </div>
-            )}
-
-            {mode === 'check' && parentEmail && (
-              <button onClick={handleSendToParent} className="email-btn">
+            <div className="action-buttons">
+              <button
+                className="btn-send-email"
+                onClick={handleSendEmail}
+                disabled={loading}
+              >
                 📧 Send to Parent
               </button>
+              <button
+                className="btn-practice"
+                onClick={() => {
+                  setResult(null)
+                  setSelectedFile(null)
+                  setPreview(null)
+                }}
+              >
+                ↻ Try Again
+              </button>
+            </div>
+
+            {result && (
+              <input
+                type="email"
+                className="parent-email-input"
+                placeholder="Parent email address"
+                value={parentEmail}
+                onChange={(e) => setParentEmail(e.target.value)}
+              />
             )}
 
-            <button onClick={handleReset} className="reset-btn">
-              ↻ Check Another
-            </button>
+            {error && <div className="error-message">{error}</div>}
           </div>
+        )}
+
+        {loading && (
+          <div className="loading">
+            <div className="spinner"></div>
+            <div className="spinner-text">Processing...</div>
+          </div>
+        )}
+      </div>
+
+      <div className={`tab-content ${activeTab === 'history' ? 'active' : ''}`}>
+        {history.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#999', padding: '40px 20px' }}>
+            No history yet. Start checking homework!
+          </div>
+        ) : (
+          <ul className="history-list">
+            {history.map((item, index) => (
+              <li key={index} className="history-item">
+                <div className="history-item-title">
+                  {item.isCorrect ? '✓ Correct' : '✗ Needs Review'}
+                </div>
+                <div className="history-item-time">{item.timestamp}</div>
+                <div className="history-item-result">{item.feedback}</div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
