@@ -1,6 +1,7 @@
 {
   "name": "homework-photo-app-web",
   "version": "1.0.0",
+  "description": "React web app for homework photo verification",
   "type": "module",
   "scripts": {
     "dev": "vite",
