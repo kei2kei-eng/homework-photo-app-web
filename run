@@ -1,3 +1,1 @@
-git add .              # Stage the changes
-git commit -m "Update file"  
-git push origin main   # Upload to GitHub
+npm install
